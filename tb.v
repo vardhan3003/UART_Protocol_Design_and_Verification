@@ -8,7 +8,7 @@ module tb();
  
    wire txrx;
    
- top dut (clk, start, txin, txrx,txrx, rxout, rxdone, txdone );
+ uart dut (clk, start, txin, txrx,txrx, rxout, rxdone, txdone );
  integer i = 0;
  
  initial 
