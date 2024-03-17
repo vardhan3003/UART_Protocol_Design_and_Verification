@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps 
  
-module top(
+module uart(
     input clk,
     input start,
     input [7:0] txin,
