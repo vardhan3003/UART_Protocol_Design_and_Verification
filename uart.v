@@ -1,18 +1,9 @@
 `timescale 1ns / 1ps 
  
-module uart(
-    input clk,
-    input start,
-    input [7:0] txin,
-    output reg tx, 
-    input rx,
-    output [7:0] rxout,
-    output rxdone, txdone
-    );
+module uart(input clk, input start,input [7:0] txin, output reg tx, input rx,output [7:0] rxout,output rxdone, txdone);
     
  parameter clk_value = 100_000;
  parameter baud = 9600;
- 
  parameter wait_count = clk_value / baud;
  
  reg bitDone = 0;
@@ -76,9 +67,7 @@ module uart(
   end 
   
   check: 
-  begin
-       
-           
+  begin   
                if(bitIndex <= 9) 
                   begin
                     if(bitDone == 1'b1)
@@ -142,7 +131,6 @@ begin
        end
 end
  
- 
 recv : 
 begin
      if(rindex <= 9) 
@@ -158,15 +146,10 @@ begin
         rstate <= ridle;
         rindex <= 0;
         end
-end
- 
- 
-default : rstate <= ridle;
- 
- 
+end  
+default : rstate <= ridle; 
  endcase
  end
- 
  
 assign rxout = rxdata[8:1]; 
 assign rxdone = (rindex == 9 && bitDone == 1'b1) ? 1'b1 : 1'b0;
