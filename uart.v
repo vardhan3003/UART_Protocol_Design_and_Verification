@@ -20,7 +20,7 @@ module uart(
  parameter idle = 0, send = 1, check = 2;
  reg [1:0] state = idle;
  
-///////////////////Generate Trigger for Baud Rate
+//Generating Trigger
  always@(posedge clk)
  begin
   if(state == idle)
@@ -42,9 +42,9 @@ module uart(
  
  end
  
- ///////////////////////TX Logic
- reg [9:0] txData;///stop bit data start
- integer bitIndex = 0; ///reg [3:0];
+//Transmitter Logic
+ reg [9:0] txData;
+ integer bitIndex = 0;
  reg [9:0] shifttx = 0;
  
  
@@ -70,8 +70,8 @@ module uart(
      end
  
   send: begin
-           tx       <= txData[bitIndex];
-           state    <= check;
+           tx <= txData[bitIndex];
+           state <= check;
            shifttx  <= {txData[bitIndex], shifttx[9:1]};
   end 
   
@@ -79,7 +79,7 @@ module uart(
   begin
        
            
-               if(bitIndex <= 9) ///0 - 9 = 10
+               if(bitIndex <= 9) 
                   begin
                     if(bitDone == 1'b1)
                      begin
@@ -102,8 +102,7 @@ module uart(
  
 assign txdone = (bitIndex == 9 && bitDone == 1'b1) ? 1'b1 : 1'b0;
  
- 
- ////////////////////////////////RX Logic
+ //Receiver Logic
  integer rcount = 0;
  integer rindex = 0;
  parameter ridle = 0, rwait = 1, recv = 2, rcheck = 3;
