@@ -1,158 +1,234 @@
-`timescale 1ns / 1ps 
+`timescale 1ns / 1ps
  
-module uart(input clk, input start,input [7:0] txin, output reg tx, input rx,output [7:0] rxout,output rxdone, txdone);
+module uart_top
+#(
+parameter clk_freq = 1000000,
+parameter baud_rate = 9600
+)
+(
+  input clk,rst, 
+  input rx,
+  input [7:0] dintx,
+  input newd,
+  output tx, 
+  output [7:0] doutrx,
+  output donetx,
+  output donerx
+    );
     
- parameter clk_value = 100_000;
- parameter baud = 9600;
- parameter wait_count = clk_value / baud;
+uarttx 
+#(clk_freq, baud_rate) 
+utx   
+(clk, rst, newd, dintx, tx, donetx);   
  
- reg bitDone = 0;
- integer count = 0;
- parameter idle = 0, send = 1, check = 2;
- reg [1:0] state = idle;
- 
-//Generating Trigger
- always@(posedge clk)
- begin
-  if(state == idle)
-    begin 
-    count <= 0;
-    end
-  else begin
-    if(count == wait_count)
-       begin
-        bitDone <= 1'b1;
-        count   <= 0;  
-       end
-    else
-       begin
-       count   <= count + 1;
-       bitDone <= 1'b0;  
-      end    
-  end
- 
- end
- 
-//Transmitter Logic
- reg [9:0] txData;
- integer bitIndex = 0;
- reg [9:0] shifttx = 0;
+uartrx 
+#(clk_freq, baud_rate)
+rtx
+(clk, rst, rx, donerx, doutrx);    
+    
+    
+endmodule
  
  
- always@(posedge clk)
- begin
- case(state)
- idle : 
-     begin
-           tx       <= 1'b1;
-           txData   <= 0;
-           bitIndex <= 0;
-           shifttx  <= 0;
-           
-            if(start == 1'b1)
-              begin
-                txData <= {1'b1,txin,1'b0};
-                state  <= send;
-              end
-            else
-              begin           
-               state <= idle;
-              end
-     end
+//////////////////////////////////////////////////////////////////
  
-  send: begin
-           tx <= txData[bitIndex];
-           state <= check;
-           shifttx  <= {txData[bitIndex], shifttx[9:1]};
-  end 
+module uarttx
+#(
+parameter clk_freq = 1000000,
+parameter baud_rate = 9600
+)
+(
+input clk,rst,
+input newd,
+input [7:0] tx_data,
+output reg tx,
+output reg donetx
+);
+ 
+  localparam clkcount = (clk_freq/baud_rate); ///x
   
-  check: 
-  begin   
-               if(bitIndex <= 9) 
-                  begin
-                    if(bitDone == 1'b1)
-                     begin
-                     state <= send;
-                     bitIndex <= bitIndex + 1;
-                     end
-                 end
-                else
-                begin
-                state <= idle;
-                bitIndex <= 0;
-                end
-            end
+integer count = 0;
+integer counts = 0;
  
- default: state <= idle;
+reg uclk = 0;
+  
+enum bit[1:0] {idle = 2'b00, start = 2'b01, transfer = 2'b10, done = 2'b11} state;
  
- endcase
- 
- end
- 
-assign txdone = (bitIndex == 9 && bitDone == 1'b1) ? 1'b1 : 1'b0;
- 
- //Receiver Logic
- integer rcount = 0;
- integer rindex = 0;
- parameter ridle = 0, rwait = 1, recv = 2, rcheck = 3;
- reg [1:0] rstate;
- reg [9:0] rxdata;
- always@(posedge clk)
- begin
- case(rstate)
- ridle : 
-     begin
-      rxdata <= 0;
-      rindex <= 0;
-      rcount <= 0;
-        
-         if(rx == 1'b0)
-          begin
-           rstate <= rwait;
-          end
-         else
-           begin
-           rstate <= ridle;
-           end
-     end
-     
-rwait : 
-begin
-      if(rcount < wait_count / 2)
-         begin
-          rcount <= rcount + 1;
-          rstate <= rwait;
-         end
-     else
-       begin
-          rcount <= 0;
-          rstate <= recv;
-          rxdata <= {rx,rxdata[9:1]}; 
-       end
-end
- 
-recv : 
-begin
-     if(rindex <= 9) 
+ ///////////uart_clock_gen
+  always@(posedge clk)
+    begin
+      if(count < clkcount/2)
+        count <= count + 1;
+      else begin
+        count <= 0;
+        uclk <= ~uclk;
+      end 
+    end
+  
+  
+  reg [7:0] din;
+  ////////////////////Reset decoder
+  
+  
+  always@(posedge uclk)
+    begin
+      if(rst) 
       begin
-      if(bitDone == 1'b1) 
+        state <= idle;
+      end
+     else
+     begin
+     case(state)
+       idle:
+         begin
+           counts <= 0;
+           tx <= 1'b1;
+           donetx <= 1'b0;
+           
+           if(newd) 
+           begin
+             state <= transfer;
+             din <= tx_data;
+             tx <= 1'b0; 
+           end
+           else
+             state <= idle;       
+         end
+       
+ 
+      
+      transfer: begin
+        if(counts <= 7) begin
+           counts <= counts + 1;
+           tx <= din[counts];
+           state <= transfer;
+        end
+        else 
         begin
-        rindex <= rindex + 1;
-        rstate <= rwait;
+           counts <= 0;
+           tx <= 1'b1;
+           state <= idle;
+          donetx <= 1'b1;
         end
       end
-      else
-        begin
-        rstate <= ridle;
-        rindex <= 0;
-        end
-end  
-default : rstate <= ridle; 
- endcase
- end
+      
  
-assign rxout = rxdata[8:1]; 
-assign rxdone = (rindex == 9 && bitDone == 1'b1) ? 1'b1 : 1'b0;
+      
+     
+      default : state <= idle;
+    endcase
+  end
+end
+ 
+endmodule
  
  
- endmodule
+ 
+////////////////////////////////////////////////////////////////////
+ 
+ 
+ 
+ 
+module uartrx
+#(
+parameter clk_freq = 1000000, //MHz
+parameter baud_rate = 9600
+    )
+ (
+input clk,
+input rst,
+input rx,
+output reg done,
+output reg [7:0] rxdata
+);
+    
+localparam clkcount = (clk_freq/baud_rate);
+  
+integer count = 0;
+integer counts = 0;
+  
+reg uclk = 0;
+  
+  
+enum bit[1:0] {idle = 2'b00, start = 2'b01} state;
+ 
+ ///////////uart_clock_gen
+  always@(posedge clk)
+    begin
+      if(count < clkcount/2)
+        count <= count + 1;
+      else begin
+        count <= 0;
+        uclk <= ~uclk;
+      end 
+    end
+  
+  
+ 
+  always@(posedge uclk)
+    begin
+      if(rst) 
+      begin
+     rxdata <= 8'h00;
+     counts <= 0;
+     done <= 1'b0;
+      end
+     else
+     begin
+     case(state)
+       
+     idle : 
+     begin
+     rxdata <= 8'h00;
+     counts <= 0;
+     done <= 1'b0;
+     
+     if(rx == 1'b0)
+       state <= start;
+     else
+       state <= idle;
+     end
+     
+     start: 
+     begin
+       if(counts <= 7)
+      begin
+     counts <= counts + 1;
+     rxdata <= {rx, rxdata[7:1]};
+     end
+     else
+     begin
+     counts <= 0;
+     done <= 1'b1;
+     state <= idle;
+     end
+     end
+   
+   
+   default : state <= idle;
+   
+   endcase
+ 
+end
+ 
+end
+ 
+endmodule
+ 
+ 
+///////////////////////////////////////////////////////////////////
+ 
+interface uart_if;
+  logic clk;
+  logic uclktx;
+  logic uclkrx;
+  logic rst;
+  logic rx;
+  logic [7:0] dintx;
+  logic newd;
+  logic tx;
+  logic [7:0] doutrx;
+  logic donetx;
+  logic donerx;
+  
+endinterface
