@@ -69,7 +69,6 @@ class generator;
   
 endclass
  
-/////////////////////////////////////////////////////////
  
 class driver;
   
@@ -122,18 +121,17 @@ class driver;
     forever begin
       mbx.get(tr);
       
-      if(tr.oper == 1'b0)  ////data transmission
+      if(tr.oper == 1'b0) 
           begin
           //           
             @(posedge vif.uclktx);
             vif.rst <= 1'b0;
-            vif.newd <= 1'b1;  ///start data sending op
+            vif.newd <= 1'b1; 
             vif.rx <= 1'b1;
             vif.dintx = tr.dintx;
             @(posedge vif.uclktx);
             vif.newd <= 1'b0;
-              ////wait for completion 
-            //repeat(9) @(posedge vif.uclktx);
+         
             mbxds.put(tr.dintx);
             $display("[DRV]: Data Sent : %0d", tr.dintx);
              wait(vif.donetx == 1'b1);  
@@ -202,7 +200,7 @@ class monitor;
       if ( (vif.newd== 1'b1) && (vif.rx == 1'b1) ) 
                 begin
                   
-                  @(posedge vif.uclktx); ////start collecting tx data from next clock tick
+                  @(posedge vif.uclktx); 
                   
               for(int i = 0; i<= 7; i++) 
               begin 
@@ -213,8 +211,7 @@ class monitor;
  
                   
                   $display("[MON] : DATA SEND on UART TX %0d", srx);
-                  
-                  //////////wait for done tx before proceeding next transaction                
+                                
                 @(posedge vif.uclktx); //
                 mbx.put(srx);
                  
@@ -270,7 +267,6 @@ class scoreboard;
   
 endclass
  
-///////////////////////////////
  
 class environment;
  
@@ -349,7 +345,6 @@ class environment;
   
 endclass
  
-///////////////////////////////////////////
  
  
 module tb;
@@ -388,5 +383,4 @@ module tb;
   endmodule
  
  
- 
-////////////////////////////////////////
+
